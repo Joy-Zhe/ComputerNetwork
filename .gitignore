@@ -1,0 +1,6 @@
+.vs/
+.vscode/
+.idea/
+.obsidian/
+cmake-build-debug/
+cmake-build-release/
