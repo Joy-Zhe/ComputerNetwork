@@ -5,4 +5,4 @@ set(CMAKE_C_STANDARD 17)
 
 link_libraries(ws2_32)
 
-add_executable(Lab1 server.c server.h)
+add_executable(Lab1 server.c server.h parser.h)

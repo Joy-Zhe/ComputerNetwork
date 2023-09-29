@@ -6,19 +6,17 @@
 #include <string.h>
 #include <time.h>
 #include <process.h>
+#include "parser.h"
 #pragma comment(lib,"ws2_32.lib")
-#define SERVER_PORT 6666 //listening port, my student ID
-struct student
-{
-    char name[32];
-    int age;
-};
+#define SERVER_PORT 4169 //listening port, my student ID
 
 struct ClientInfo {
-    SOCKET sCilent;
+    SOCKET sClient;
     struct sockaddr_in saClient;
     int if_connected;
 };
+CRITICAL_SECTION cs; // 临界区
+
 
 void InitWinSocket(){
     WSADATA wsaData;
@@ -37,23 +35,13 @@ void InitWinSocket(){
 }
 
 void CreateListeningSocket(SOCKET *ListenSocket, struct sockaddr_in *saServer) {
-//    SOCKET ListenSocket, sServer; //listening socket，connection socket
-//    struct sockaddr_in saServer, saClient; // address info
     struct addrinfo *result = NULL, *ptr = NULL, hints;
     hints.ai_family = AF_INET;
     hints.ai_socktype = SOCK_STREAM;
     hints.ai_protocol = IPPROTO_TCP;
     hints.ai_flags = AI_PASSIVE; // for wildcard IP address
 
-//    int iResult = getaddrinfo(NULL, "6666", &hints, &result);
-//    if (iResult != 0) {
-//        printf("getaddrinfo() failed!\n");
-//        WSACleanup();
-//        exit(1);
-//    }
-
     *ListenSocket = INVALID_SOCKET;
-//    *ListenSocket = socket(result->ai_family, result->ai_socktype, result->ai_protocol);
     *ListenSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
     if(*ListenSocket == INVALID_SOCKET)
     {
@@ -93,65 +81,90 @@ void Listen(const SOCKET *sListen) {
     }
 }
 
-void WaitForConnection(SOCKET *sListen, SOCKET *sServer, struct sockaddr_in *saClient) {
-    int length = sizeof(*saClient);
-    *sServer = accept(*sListen, (struct sockaddr *)saClient, &length);
-//    if(*sServer == INVALID_SOCKET)
-//    {
-//        printf("accept() failed! code:%d\n", WSAGetLastError());
-//        closesocket(*sListen);// close socket
-//        WSACleanup();
-//        return;
-//    }
-
-    while (*sServer == INVALID_SOCKET) {
-        printf("accept() failed! code:%d\n", WSAGetLastError());
-    }
-    printf("Accepted client: %s:%d\n",
-           inet_ntoa((*saClient).sin_addr), ntohs((*saClient).sin_port));
-}
-
-void Interaction(struct student stu, SOCKET *sServer, SOCKET *sListen, char **ptr) {
-    int ret, nLeft = sizeof(stu);
-    *ptr = (char *)&stu;
-    while(nLeft >0)
-    {
-        //接收数据：
-        ret = recv(*sServer, *ptr, nLeft, 0);
-        if(ret == SOCKET_ERROR)
-        {
-            printf("recv() failed!\n");
-            break;
-        }
-
-        if(ret == 0) //客户端已经关闭连接
-        {
-            printf("client has closed the connection!\n");
-            break;
-        }
-        nLeft -= ret;
-        *ptr += ret;
-    }
-
-    if(!nLeft) // all data received
-        printf("name: %s\nage:%d\n", stu.name, stu.age);
-
-    closesocket(*sListen);// close socket
-    closesocket(*sServer);
-    WSACleanup();
-}
-
 unsigned int __stdcall HandleClient(void *clientInfoPtr) {
     struct ClientInfo *clientInfo = (struct ClientInfo *)clientInfoPtr;
-    SOCKET socket = clientInfo->sCilent;
+    SOCKET socket = clientInfo->sClient;
     struct sockaddr_in saClient = clientInfo->saClient;
 
-    // information
+    // Information
     const char *msg = "Hello, I'm server!";
     send(socket, msg, strlen(msg), 0);
+
+    while (1) {
+        char buffer[1024];
+        int bytesRead = recv(socket, buffer, sizeof(buffer), 0);
+        if (bytesRead == SOCKET_ERROR) {
+            printf("recv() failed! code:%d\n", WSAGetLastError());
+            break; // connection failed
+        } else if (bytesRead == 0) {
+            printf("Client has closed the connection.\n");
+            break; // connect
+        } else {
+            // 处理接收到的数据
+            buffer[bytesRead] = '\0'; // 确保字符串以 null 结尾
+            struct Message *message = (struct Message *)malloc(sizeof(struct Message));
+            ParseRequest(buffer, message);
+            printf("Received message: %d\n", message->type);
+
+            // get all request information in responseBody
+            struct responseBody *response = (struct responseBody *)malloc(sizeof(struct responseBody));
+            /*
+             * struct responseBody{
+             *  int type;       // type
+             *  char msg[512];  // message for type 6
+             *  char ip[20];    // ip for type 1 and 2 and 4 and 5
+             *  char port[10];
+             *  char name[20];  // name for type 4
+             *  char time[20];
+             *  struct ClientList clientList[10];   // client list for type 5
+             *  };
+             */
+            response->type = message->type;
+            strcpy(response->msg, message->data);
+            strcpy(response->ip, inet_ntoa(saClient.sin_addr));
+            sprintf(response->port, "%d", ntohs(saClient.sin_port));
+            strcpy(response->name, "client");
+            time_t currentTime;
+            struct tm *timeInfo;
+            time(&currentTime);
+            timeInfo = localtime(&currentTime);
+            strftime(response->time, sizeof(response->time), "%Y-%m-%d %H:%M:%S", timeInfo);
+            printf("response->type: %d\n", response->type);
+            printf("response->msg: %s\n", response->msg);
+            printf("response->ip: %s\n", response->ip);
+            printf("response->port: %s\n", response->port);
+            printf("response->name: %s\n", response->name);
+            printf("response->time: %s\n", response->time);
+
+//            if (strcmp(buffer, "GET_TIME") == 0) {
+//                // 发送当前时间
+//                time_t currentTime;
+//                struct tm *timeInfo;
+//                time(&currentTime);
+//                timeInfo = localtime(&currentTime);
+//                char timeStr[64];
+//                strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", timeInfo);
+//                send(socket, timeStr, strlen(timeStr), 0);
+//                send(socket, (const char *) connectedClients, sizeof(connectedClients), 0);
+//            } else {
+//                // 处理其他请求类型
+//                // 这里可以根据不同的请求类型添加相应的逻辑
+//                // 例如，处理获取名字、获取客户端列表等其他请求
+//                // 并根据请求类型发送相应的响应数据
+//            }
+        }
+    }
+
+    // 关闭连接
     closesocket(socket);
     clientInfo->if_connected = 0;
+    connectedClients--; // 减少连接的客户端数量
+    printf("Connection closed for client: %s:%d\n",
+           inet_ntoa(saClient.sin_addr), ntohs(saClient.sin_port));
+    printf("Connected clients: %d\n", connectedClients);
+    return 0;
 }
+
 
 void StartServer() {
     InitWinSocket();
@@ -162,11 +175,14 @@ void StartServer() {
     Listen(&ListenSocket);
     printf("Waiting for client connecting!\n");
     printf("tips : Ctrl+c to quit!\n");
+    InitializeCriticalSection(&cs); // 初始化临界区
     struct ClientInfo clientInfo[FD_SETSIZE];
+
     // initialize clientInfo
     for (int i = 0; i < FD_SETSIZE; i++) {
         clientInfo[i].if_connected = 0;
     }
+
     // main process
     while(1){
         fd_set readSet;
@@ -174,14 +190,14 @@ void StartServer() {
         FD_SET(ListenSocket, &readSet);
         for (int i = 0; i < FD_SETSIZE; i++) {
             if (clientInfo[i].if_connected) {
-                FD_SET(clientInfo[i].sCilent, &readSet);
+                FD_SET(clientInfo[i].sClient, &readSet);
             }
         }
         int maxSocket = (int)ListenSocket;
         for (int i = 0; i < FD_SETSIZE; i++) {
             if (clientInfo[i].if_connected) {
-                if ((int)clientInfo[i].sCilent > maxSocket) {
-                    maxSocket = (int)clientInfo[i].sCilent;
+                if ((int)clientInfo[i].sClient > maxSocket) {
+                    maxSocket = (int)clientInfo[i].sClient;
                 }
             }
         }
@@ -203,9 +219,10 @@ void StartServer() {
                 int i;
                 for (i = 0; i < FD_SETSIZE; i++) {
                     if (!clientInfo[i].if_connected) {
-                        clientInfo[i].sCilent = clientSocket;
+                        clientInfo[i].sClient = clientSocket;
                         clientInfo[i].saClient = saClient;
                         clientInfo[i].if_connected = 1;
+                        connectedClients++; // 增加连接的客户端数量
                         HANDLE thread = (HANDLE)_beginthreadex(NULL, 0, HandleClient, &clientInfo[i], 0, NULL);
                         if (thread == NULL) {
                             printf("Create thread failed!\n");
@@ -222,7 +239,11 @@ void StartServer() {
                        inet_ntoa(saClient.sin_addr), ntohs(saClient.sin_port));
             }
         }
+
+        // 实时输出当前连接的客户端数量
+        printf("Connected clients: %d\n", connectedClients);
     }
+    DeleteCriticalSection(&cs);
     closesocket(ListenSocket);
     WSACleanup();
     exit(0);
