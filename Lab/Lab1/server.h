@@ -10,11 +10,7 @@
 #pragma comment(lib,"ws2_32.lib")
 #define SERVER_PORT 4169 //listening port, my student ID
 
-struct ClientInfo {
-    SOCKET sClient;
-    struct sockaddr_in saClient;
-    int if_connected;
-};
+
 CRITICAL_SECTION cs; // 临界区
 
 
@@ -81,14 +77,32 @@ void Listen(const SOCKET *sListen) {
     }
 }
 
+// for Send Message to other clients
+void BroadcastMsg(const char *ip, const unsigned short port, const char *msg) {
+    for (int i = 1; i <= connectedClients; i++) {
+        char cur_ip[20];
+        unsigned short cur_port = ntohs(clientList[i - 1].saClient.sin_port);
+        strcpy(cur_ip, inet_ntoa(clientList[i - 1].saClient.sin_addr));
+        if (strcmp(cur_ip, ip) == 0 && cur_port == port) {
+            send(clientList[i - 1].sClient, msg, strlen(msg), 0);
+            return;
+        } else {
+            continue;
+        }
+    }
+    printf("No such client!\n");
+}
+
 unsigned int __stdcall HandleClient(void *clientInfoPtr) {
     struct ClientInfo *clientInfo = (struct ClientInfo *)clientInfoPtr;
     SOCKET socket = clientInfo->sClient;
     struct sockaddr_in saClient = clientInfo->saClient;
+//    strcpy(clientList[connectedClients].ip, inet_ntoa(saClient.sin_addr));
+//    clientList[connectedClients].port = ntohs(saClient.sin_port);
 
     // Information
     const char *msg = "Hello, I'm server!";
-    send(socket, msg, strlen(msg), 0);
+//    send(socket, msg, strlen(msg), 0);
 
     while (1) {
         char buffer[1024];
@@ -96,10 +110,12 @@ unsigned int __stdcall HandleClient(void *clientInfoPtr) {
         if (bytesRead == SOCKET_ERROR) {
             printf("recv() failed! code:%d\n", WSAGetLastError());
             break; // connection failed
-        } else if (bytesRead == 0) {
-            printf("Client has closed the connection.\n");
-            break; // connect
-        } else {
+        }
+//        else if (bytesRead == 0) {
+//            printf("Client has closed the connection.\n");
+//            break; // connect
+//        }
+        else {
             // 处理接收到的数据
             buffer[bytesRead] = '\0'; // 确保字符串以 null 结尾
             struct Message *message = (struct Message *)malloc(sizeof(struct Message));
@@ -135,23 +151,29 @@ unsigned int __stdcall HandleClient(void *clientInfoPtr) {
             printf("response->port: %s\n", response->port);
             printf("response->name: %s\n", response->name);
             printf("response->time: %s\n", response->time);
-
-//            if (strcmp(buffer, "GET_TIME") == 0) {
-//                // 发送当前时间
-//                time_t currentTime;
-//                struct tm *timeInfo;
-//                time(&currentTime);
-//                timeInfo = localtime(&currentTime);
-//                char timeStr[64];
-//                strftime(timeStr, sizeof(timeStr), "%Y-%m-%d %H:%M:%S", timeInfo);
-//                send(socket, timeStr, strlen(timeStr), 0);
-//                send(socket, (const char *) connectedClients, sizeof(connectedClients), 0);
-//            } else {
-//                // 处理其他请求类型
-//                // 这里可以根据不同的请求类型添加相应的逻辑
-//                // 例如，处理获取名字、获取客户端列表等其他请求
-//                // 并根据请求类型发送相应的响应数据
-//            }
+/*
+ * actually the data part only will be used when type is 6
+ * |type|data|
+ * |0|Done|
+ * |1|Connect|
+ * |2|Cancel|
+ * |3|LocalTime|
+ * |4|HostName|
+ * |5|List|
+ * |6|<Message to be sent>|
+ */
+            char *responseBuffer = (char *)malloc(1024 * sizeof(char));
+            struct responseBody *recvMsgClient = (struct responseBody *)malloc(sizeof(struct responseBody));
+            if (response->type == 6) {
+                DecodeInfo(response->msg, recvMsgClient);
+                // send message to other clients
+//                BroadcastMsg(response->ip, atoi(response->port), response->msg);
+            }
+            EncodeResponse(response->type, response, responseBuffer);
+            send(socket, responseBuffer, strlen(responseBuffer), 0);
+            printf("Sent message: %s\n", responseBuffer);
+            if (response->type == 2)
+                break;
         }
     }
 
@@ -176,11 +198,10 @@ void StartServer() {
     printf("Waiting for client connecting!\n");
     printf("tips : Ctrl+c to quit!\n");
     InitializeCriticalSection(&cs); // 初始化临界区
-    struct ClientInfo clientInfo[FD_SETSIZE];
 
     // initialize clientInfo
     for (int i = 0; i < FD_SETSIZE; i++) {
-        clientInfo[i].if_connected = 0;
+        clientList[i].if_connected = 0;
     }
 
     // main process
@@ -189,15 +210,15 @@ void StartServer() {
         FD_ZERO(&readSet);
         FD_SET(ListenSocket, &readSet);
         for (int i = 0; i < FD_SETSIZE; i++) {
-            if (clientInfo[i].if_connected) {
-                FD_SET(clientInfo[i].sClient, &readSet);
+            if (clientList[i].if_connected) {
+                FD_SET(clientList[i].sClient, &readSet);
             }
         }
         int maxSocket = (int)ListenSocket;
         for (int i = 0; i < FD_SETSIZE; i++) {
-            if (clientInfo[i].if_connected) {
-                if ((int)clientInfo[i].sClient > maxSocket) {
-                    maxSocket = (int)clientInfo[i].sClient;
+            if (clientList[i].if_connected) {
+                if ((int)clientList[i].sClient > maxSocket) {
+                    maxSocket = (int)clientList[i].sClient;
                 }
             }
         }
@@ -218,16 +239,17 @@ void StartServer() {
             } else {
                 int i;
                 for (i = 0; i < FD_SETSIZE; i++) {
-                    if (!clientInfo[i].if_connected) {
-                        clientInfo[i].sClient = clientSocket;
-                        clientInfo[i].saClient = saClient;
-                        clientInfo[i].if_connected = 1;
+                    if (!clientList[i].if_connected) {
+                        clientList[i].sClient = clientSocket;
+                        clientList[i].saClient = saClient;
+                        clientList[i].if_connected = 1;
                         connectedClients++; // 增加连接的客户端数量
-                        HANDLE thread = (HANDLE)_beginthreadex(NULL, 0, HandleClient, &clientInfo[i], 0, NULL);
+                        HANDLE thread = (HANDLE)_beginthreadex(NULL, 0, HandleClient, &clientList[i], 0, NULL);
                         if (thread == NULL) {
                             printf("Create thread failed!\n");
                             exit(1);
                         }
+                        send(clientSocket, "Hello, I'm server!", strlen("Hello, I'm server!"), 0);
                         break;
                     }
                 }

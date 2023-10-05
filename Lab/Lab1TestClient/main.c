@@ -78,7 +78,7 @@ int main() {
 
             case 3:
                 if (connected) {
-                    const char *request = "|0|Connect|"; // 请求服务器获取时间
+                    const char *request = "|3|LocalTime|"; // 请求服务器获取时间
                     send(clientSocket, request, strlen(request), 0);
 
                     // 接收服务器的响应

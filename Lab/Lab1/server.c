@@ -3,10 +3,14 @@
 int main()
 {
     // test parser
+//    char *testResponse = (char *)malloc(256 * sizeof(char));
+//    struct responseBody data;
+//    strcpy(data.time, "2023-10-01 19:00:00");
 //    struct Message message;
-//    const char *requestStr = "|0|Done|";
+//    const char *requestStr = "|3|LocalTime|";
 //    int type = ParseRequest(requestStr, &message);
-//    printf("%d", type);
+//    printf("%d\n", type);
+//    EncodeResponse(type, &data, testResponse);
     StartServer();
     return 0;
 }

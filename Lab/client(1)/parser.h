@@ -13,20 +13,11 @@ struct Message{
     char data[512];
 };
 
-struct ClientInfo {
-    SOCKET sClient;
-    struct sockaddr_in saClient;
-    int if_connected;
+struct ClientList{
+    char ip[20];
+    char port[10];
+    char name[20];
 };
-struct ClientInfo clientList[FD_SETSIZE];
-
-//struct ClientList{
-//    char ip[20];
-//    unsigned short port;
-//    int if_connected;
-//    char name[20];
-//};
-//struct ClientList clientList[FD_SETSIZE]; // client list
 
 struct responseBody{
     int type;       // type
@@ -35,6 +26,7 @@ struct responseBody{
     char port[10];
     char name[20];  // name for type 4
     char time[20];
+    struct ClientList clientList[10];   // client list for type 5
 };
 
 // request list
@@ -48,6 +40,7 @@ struct responseBody{
  * |4|HostName|
  * |5|List|
  * |6|<Message to be sent>|
+ * <Message to be sent>: ip*port*content
  */
 
 int ParseRequest(const char *requestStr, struct Message *message){
@@ -70,41 +63,13 @@ int ParseRequest(const char *requestStr, struct Message *message){
         return -1;
     }
     strcpy(message->data, typeStr);
-    printf("Parsed request: type = %d, data = %s\n", message->type, message->data);
+    printf("Parsed request: type = %ld, data = %s\n", message->type, message->data);
     return message->type;
-}
-
-// for Send Message to other clients
-void DecodeInfo(const char *msg, const struct responseBody *data) {
-    if (msg == NULL || data == NULL) {
-        return;
-    }
-    char *infoStr = (char *)malloc(512 * sizeof(char));
-    strcpy(infoStr, msg);
-    char *ipStr = strtok(infoStr, "*");
-    if (ipStr == NULL) {
-        printf("Wrong request format!\n");
-        return;
-    }
-    strcpy(data->ip, ipStr);
-    ipStr = strtok(NULL, "*");
-    if (ipStr == NULL) {
-        printf("Wrong request format!\n");
-        return;
-    }
-    strcpy(data->port, ipStr);
-    ipStr = strtok(NULL, "*");
-    if (ipStr == NULL) {
-        printf("Wrong request format!\n");
-        return;
-    }
-    strcpy(data->msg, ipStr);
-    printf("Decoded info: ip = %s, port = %s, msg = %s\n", data->ip, data->port, data->msg);
 }
 
 // use struct to package different information
 // response list
-void EncodeResponse(int type, const struct responseBody *data/*, const char *data*/, char *responseStr){
+void EncodeResponse(int type, const struct responseBody *data, char *responseStr){
     if (responseStr == NULL) {
         return;
     }
@@ -150,18 +115,10 @@ void EncodeResponse(int type, const struct responseBody *data/*, const char *dat
         case 5:
             strcat(responseStr, "List");
             strcat(responseStr, "|");
-            // construct client list info
-            char clientNum[10];
-            sprintf(clientNum, "%d", connectedClients);
-            strcat(responseStr, clientNum);
-            strcat(responseStr, "|");
-
-            for (int i = 1; i <= connectedClients; i++) {
+            // 构建客户端列表信息
+            for (int i = 0; i < connectedClients; i++) {
                 char clientInfo[512];
-                char cur_ip[20];
-                unsigned short cur_port = ntohs(clientList[i - 1].saClient.sin_port);
-                strcpy(cur_ip, inet_ntoa(clientList[i - 1].saClient.sin_addr));
-                sprintf(clientInfo, "\n|%d|%s|%d|", i, cur_ip, cur_port);
+                sprintf(clientInfo, "\n|%d|%s|%s|", i + 1, data->clientList[i].ip, data->clientList[i].port);
                 strcat(responseStr, clientInfo);
             }
             strcat(responseStr, "\n");
