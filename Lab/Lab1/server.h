@@ -78,12 +78,12 @@ void Listen(const SOCKET *sListen) {
 }
 
 // for Send Message to other clients
-void BroadcastMsg(const char *ip, const unsigned short port, const char *msg) {
+void BroadcastMsg(const char *ip, const char *port, const char *msg) {
     for (int i = 1; i <= connectedClients; i++) {
         char cur_ip[20];
         unsigned short cur_port = ntohs(clientList[i - 1].saClient.sin_port);
         strcpy(cur_ip, inet_ntoa(clientList[i - 1].saClient.sin_addr));
-        if (strcmp(cur_ip, ip) == 0 && cur_port == port) {
+        if (strcmp(cur_ip, ip) == 0 && cur_port == atoi(port)) {
             send(clientList[i - 1].sClient, msg, strlen(msg), 0);
             return;
         } else {
@@ -145,12 +145,13 @@ unsigned int __stdcall HandleClient(void *clientInfoPtr) {
             time(&currentTime);
             timeInfo = localtime(&currentTime);
             strftime(response->time, sizeof(response->time), "%Y-%m-%d %H:%M:%S", timeInfo);
-            printf("response->type: %d\n", response->type);
+            // for test output
+            /*printf("response->type: %d\n", response->type);
             printf("response->msg: %s\n", response->msg);
             printf("response->ip: %s\n", response->ip);
             printf("response->port: %s\n", response->port);
             printf("response->name: %s\n", response->name);
-            printf("response->time: %s\n", response->time);
+            printf("response->time: %s\n", response->time);*/
 /*
  * actually the data part only will be used when type is 6
  * |type|data|
@@ -167,7 +168,7 @@ unsigned int __stdcall HandleClient(void *clientInfoPtr) {
             if (response->type == 6) {
                 DecodeInfo(response->msg, recvMsgClient);
                 // send message to other clients
-//                BroadcastMsg(response->ip, atoi(response->port), response->msg);
+                BroadcastMsg(recvMsgClient->ip, recvMsgClient->port, recvMsgClient->msg);
             }
             EncodeResponse(response->type, response, responseBuffer);
             send(socket, responseBuffer, strlen(responseBuffer), 0);

@@ -18,7 +18,7 @@
 		[2] Get server time                ==>  t\n \
 		[3] Get server Name                ==>  n\n \
 		[4] Get clients lists              ==>  l\n \
-		[5] Send Messege to other clients  ==>  s\n \
+		[5] Send Messege · other clients  ==>  s\n \
 		[6] Disconnet from Server          ==>  b\n \
 		[7] Quit the program               ==>  q\n \
 		[8] Get help                       ==>  h\n"
@@ -52,7 +52,6 @@ void PktRequest(struct Message* t, char* s){
 void getTime(){
     struct Message* temp = (struct Message*)malloc(sizeof(struct Message));
     char* s = (char*)malloc(sizeof(char));
-    //strcpy(temp->type, "time");
     temp->type = TIME;
     PktRequest(temp, s);
     int ret = send(Client_SOCKET, s, strlen(s), 0);
@@ -62,7 +61,6 @@ void getTime(){
 void getName(){
     struct Message* temp = (struct Message*)malloc(sizeof(struct Message));
     char* s = (char*)malloc(sizeof(char));
-    //strcpy(temp->type, "time");
     temp->type = NAME;
     PktRequest(temp, s);
     int ret = send(Client_SOCKET, s, strlen(s), 0);
@@ -95,46 +93,35 @@ void DisconnetfromServer(){
 void sendMessageForward( )
 {
     struct Message* temp = (struct Message*)malloc(sizeof(struct Message));
-    //strcpy(temp->type, "msg");
     temp->type = SEND;
 
     printf("input your target ip: ");
-    char ip[20];
-    memset(ip, '\0', sizeof(ip));
-    scanf("%s", ip);
-    getchar(); //get rid of the '\n'
+    std::string ip,port,content,result,type;
+    std::cin>>ip;
+    std::cout<<"ip : "<<ip<<std::endl;
+//    char ip[10];memset(ip, '\0', sizeof(ip));
+//    scanf("%s", ip);
+//    getchar(); //get rid of the '\n'
+    //printf("ip: %s get with strlen %d\n",ip, strlen(ip));
 
     printf("input your target port: ");
-    char port[5];
-    memset(port, '\0', sizeof(port));
-    scanf("%s", port);
-    getchar(); //get rid of the '\n'
+    std::cin>>port;
+    std::cout<<"port : "<<port<<std::endl;
+//    char port[5];memset(port, '\0', sizeof(port));
+//    scanf("%s", port);
+//    getchar(); //get rid of the '\n'
 
-    printf("input your target msg:  ");
-    char content[MAXCONTENT];
-    memset(content,'\0',sizeof(content));
-    fgets(content, MAXCONTENT, stdin);
-
-    char* s = (char*)malloc(sizeof(char));
-    //PktRequest(temp, s);
-    strcpy(s, "\0");           //clean s
-    strcpy(s, "|");            //"|" means a split character
-    char type_[2];
-    memset(type_, '\0', sizeof(type_));
-    sprintf(type_, "%d", temp->type);
-    strcat(s, type_);        //request type
-    strcat(s, "|");
+    printf("input your target msg: ");
+    std::cin>>content;
+    std::cout<<"content : "<<content<<std::endl;
+    type = "|"+std::to_string(temp->type)+"|";
     /* |type| */
-    strcat(s, ip);
-    strcat(s, "*");
-    strcat(s, port);
-    strcat(s, "*");
-    strcat(s, content);
-    strcat(s, "*");
-    strcat(s, "|");
+
+    result = type + ip + "*" + port + "*" + content + "*|";
+    std::cout<<"sendMessageForward : "<<result<<std::endl;
     /* |type|data| */
-    /* data : ip*port*content*/
-    int ret = send(Client_SOCKET, s, strlen(s), 0);
+    /* data : ip*port*content */
+    int ret = send(Client_SOCKET, result.c_str(), strlen(result.c_str()), 0);
     if (ret == SOCKET_ERROR) printf("sendMessageForward send() failed!\n");
 }
 
@@ -158,12 +145,13 @@ SOCKET Socket_Systemcall() {
 
 void UnPackageMsg(char* s, struct responseBody *t){
     /*|type|data|*/
-    char data[111];//MAXCONTENT
+    char data[MAXCONTENT];
     char type_[20];
     int type;
     memset(data, '\0', sizeof(data));
     memset(type_,'\0',sizeof(type_));
     sscanf(s, "|%d|%s|%s|", &type,type_,data);
+//    int connectedClients = 0;
     switch (type)
     {
     case TYPE::NAME:
@@ -180,19 +168,27 @@ void UnPackageMsg(char* s, struct responseBody *t){
     case TYPE::CONNECT:
         break;
     case TYPE::CLIENT:
-    // char clientInfo[512];
-    // sprintf(clientInfo, "\n|%d|%s|%s|", i + 1,
-    // data->clientList[i].ip, data->clientList[i].port);
+//        struct responseBody{
+//            int type;       // type
+//            char msg[512];  // message for type 6
+//            char ip[20];    // ip for type 1 and 2 and 4 and 5
+//            char port[10];
+//            char name[20];  // name for type 4
+//            char time[20];  // time for type 3
+//            struct ClientList clientList[10];   // client list for type 5
+//        };
         {
+            sscanf(data,"|%d|",&connectedClients);
+//            printf("connectedClients is %d\n",connectedClients);
             char ip[20];
-            char port[20];
+            unsigned short port;
             int client_id = 0;
             for(int i = 0; i < connectedClients; i++)
             {
-                memset(ip, '\0', sizeof(ip));memset(port, '\0', sizeof(port));
-                sscanf(s,"\n|%d|%s|%s|",&client_id,ip,port);
+                memset(ip, '\0', sizeof(ip));
+                sscanf(data,"|%d|%s|%d|",&client_id,ip,&port);
                 strcpy((t->clientList[i]).ip, ip);
-                strcpy((t->clientList[i]).port, port);
+                (t->clientList[i]).port=port;
             }
         }
         break;
@@ -203,7 +199,6 @@ void UnPackageMsg(char* s, struct responseBody *t){
 
 DWORD WINAPI Receive_Pipeline(LPVOID lpParameter) {
     printf("SubThread_Receiving ID:%4d created!\n", GetCurrentThreadId());
-//    printf("-----------------------------\n");
     int ret = 0;
 
     //GetMessage, PostThreadMessage, PostMessage
@@ -216,8 +211,7 @@ DWORD WINAPI Receive_Pipeline(LPVOID lpParameter) {
             printf("recv failed!\n");
             break;
         }else{
-            printf("recv succeed\n");
-            printf("recv content is: %s\n",recvBuf);
+            printf("recv succeed with content : %s\n",recvBuf);
         }
 
         struct responseBody* temp = (struct responseBody*)malloc(sizeof(struct responseBody));
@@ -233,13 +227,15 @@ DWORD WINAPI Receive_Pipeline(LPVOID lpParameter) {
             printf("host time is %s", temp->time);
         }else if(temp->type == TYPE::SEND){
             strcpy(recvBuf,temp->msg);
+            printf("msg is : %s\n",temp->msg);
         }else if(temp->type == TYPE::CANCEL){
             printf("Disconnected\n");
             break;
         }else if(temp->type == TYPE::CLIENT ){
+            printf("connectedClients is %d\n",connectedClients);
             for(int i = 0; i < connectedClients; i++){
                 struct ClientList cli = temp->clientList[i];
-                printf("client ip:%s port:%s\n",cli.ip ,cli.port);// name:%s,cli.name
+                printf("client %d ip : %s port : %d\n",i+1, cli.ip ,cli.port);
             }
         }
         memset(recvBuf, 0, sizeof(recvBuf)); //the Global: char *recvBuf
@@ -254,12 +250,12 @@ DWORD WINAPI Receive_Pipeline(LPVOID lpParameter) {
 }
 void Connect2Server( ) {
 
-    u_long _serverPort = 0;
-    char  _serverIP[64] = { 0 };
-    printf("Please type in your target server's IP:  ");
-    scanf("%s", _serverIP);
-    printf("Please type in your target server's Port:  ");
-    scanf("%lu", &_serverPort);
+    u_long _serverPort = 4169;
+    char  _serverIP[64] = { "127.0.0.1" };
+//    printf("Please type in your target server's IP:  ");
+//    scanf("%s", _serverIP);
+//    printf("Please type in your target server's Port:  ");
+//    scanf("%lu", &_serverPort);
 
     //服务器地址信息对象
     SOCKADDR_IN saServer;
@@ -345,17 +341,7 @@ int main() {
     if (hThread == NULL || threadId == 0){
         printf("CreatThread failed.\n");
     }
-    //GetHelp();
-    printf("HELP:\n \
-		[1] Connet to Server               ==>  c\n\
-		[2] Get server time                ==>  t\n\
-		[3] Get server Name                ==>  n\n\
-		[4] Get clients lists              ==>  l\n\
-		[5] Send Messege to other clients  ==>  s\n\
-		[6] Disconnet from Server          ==>  b\n\
-		[7] Quit the program               ==>  q\n\
-		[8] Get help                       ==>  h\n");
-    printf("-----------------------------\n");
+    printf(HELP_INFORMATION);
     while (true){
         if (WaitForSingleObject(hEvent_User, 10) != WAIT_OBJECT_0){}  //NO user input
         else{ //with user input

@@ -75,7 +75,7 @@ int ParseRequest(const char *requestStr, struct Message *message){
 }
 
 // for Send Message to other clients
-void DecodeInfo(const char *msg, const struct responseBody *data) {
+void DecodeInfo(const char *msg, struct responseBody *data) {
     if (msg == NULL || data == NULL) {
         return;
     }

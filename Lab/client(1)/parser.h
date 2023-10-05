@@ -4,6 +4,8 @@
 #include <string.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string>
+#include <iostream>
 int connectedClients = 0; // connected clients
 
 enum TYPE{ DONE = 0, CONNECT = 1, CANCEL = 2, TIME = 3, NAME = 4, CLIENT = 5, SEND = 6 };
@@ -13,11 +15,27 @@ struct Message{
     char data[512];
 };
 
+//struct ClientList{
+//    char ip[20];
+//    char port[10];
+//    char name[20];
+//};
 struct ClientList{
     char ip[20];
-    char port[10];
+    unsigned short port;
+    int if_connected;
     char name[20];
 };
+
+//struct responseBody{
+//    int type;       // type
+//    char msg[512];  // message for type 6
+//    char ip[20];    // ip for type 1 and 2 and 4 and 5
+//    char port[10];
+//    char name[20];  // name for type 4
+//    char time[20];
+//    struct ClientList clientList[10];   // client list for type 5
+//};
 
 struct responseBody{
     int type;       // type
@@ -25,9 +43,11 @@ struct responseBody{
     char ip[20];    // ip for type 1 and 2 and 4 and 5
     char port[10];
     char name[20];  // name for type 4
-    char time[20];
+    char time[20];  // time for type 3
     struct ClientList clientList[10];   // client list for type 5
 };
+
+
 
 // request list
 /*
