@@ -6,8 +6,8 @@
 #include <stdio.h>
 #include <string>
 #include <iostream>
-#include <sstream>
 #include <vector>
+#include <sstream>
 int connectedClients = 0; // connected clients
 
 enum TYPE{ DONE = 0, CONNECT = 1, CANCEL = 2, TIME = 3, NAME = 4, CLIENT = 5, SEND = 6 };

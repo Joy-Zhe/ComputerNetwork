@@ -90,6 +90,7 @@ void BroadcastMsg(const char *ip, const char *port, const char *msg) {
         unsigned short cur_port = ntohs(clientList[i - 1].saClient.sin_port);
         strcpy(cur_ip, inet_ntoa(clientList[i - 1].saClient.sin_addr));
         if (strcmp(cur_ip, ip) == 0 && cur_port == atoi(port)) {
+            printf("Send message to client: %s:%d\n", cur_ip, cur_port);
             send(clientList[i - 1].sClient, msg, strlen(msg), 0);
             return;
         } else {

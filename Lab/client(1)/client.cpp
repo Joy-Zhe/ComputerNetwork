@@ -22,7 +22,6 @@
 		[6] Disconnet from Server          ==>  b\n \
 		[7] Quit the program               ==>  q\n \
 		[8] Get help                       ==>  h\n"
-//using namespace std;
 #define MAXCONTENT         512
 /*------- GLOBAL VARIABLE REGION -------*/
 BOOL CONNECTION_STATUS = FALSE;
@@ -146,71 +145,9 @@ SOCKET Socket_Systemcall() {
 
 void UnPackageMsg(char* s, struct responseBody *t){
     /*|type|data|*/
-//    std::string data;
-//    int type;
-//    std::string src = s;
-//    std::stringstream ss(src);
-//    std::cout<<"src : "<<src<<std::endl;
-//    char splitchar = '|'; // 设定好分隔符号(只能使用一个字符进行分割)
-//    std::vector<std::string> results; // 用来存储结果
-//    results.clear();
-//    std::string str; //用来接收每个分割的字符串
-//    std::string ip;
-//    unsigned short port;
-//    // 开始分隔
-//    while (std::getline(ss, str, splitchar)) {
-//        results.push_back(str);
-//    }
-//    std::cout<<"results.size() : "<<results.size()<<std::endl;
-//    for(int i=0;i<results.size();i++){
-//        cout<<"i = "<<i<<endl;
-//        cout<<"results[i] = "<<results[i]<<endl;
-//    }
-////    if(results.size()%3) return;
-//    type = atoi(results[1].c_str());
-//    t->type = type;
-//    std::cout<<"t->type : "<<t->type<<std::endl;
-//    switch (type) {
-//        case TYPE::NAME:
-//            strcpy(t->name, results[3].c_str());
-//            std::cout<<"t->name : "<<t->name<<std::endl;
-//            break;
-//        case TYPE::TIME:
-//            strcpy(t->time, results[3].c_str());
-//            std::cout<<"t->time : "<<t->time<<std::endl;
-//            break;
-//        case TYPE::SEND:
-//            strcpy(t->msg, results[3].c_str());
-//            std::cout<<"t->msg : "<<t->msg<<std::endl;
-//            break;
-//        case TYPE::CANCEL:
-//            std::cout<<"cancel"<<std::endl;
-//            break;
-//        case TYPE::DONE:
-//            std::cout<<"done"<<std::endl;
-//            break;
-//        case TYPE::CONNECT:
-//            std::cout<<"connect"<<std::endl;
-//            break;
-//        case TYPE::CLIENT:
-//            connectedClients = atoi(results[3].c_str());
-//            std::cout<<"connectedClients : "<<connectedClients<<std::endl;
-//            for(int i = 0; i < connectedClients; i++)
-//            {
-////                ip = results[3*i+4];
-////                port = atoi(results[3*i+5].c_str());
-////                strcpy((t->clientList[i]).ip, ip.c_str());
-////                (t->clientList[i]).port=port;
-////                std::cout<<"(t->clientList[i]).ip : "<<(t->clientList[i]).ip<<std::endl;
-////                std::cout<<"(t->clientList[i]).port : "<<(t->clientList[i]).port<<std::endl;
-//            }
-//            break;
-//        default:
-//            break;
-//    }
     char data[MAXCONTENT];
     char type_[20];
-    int type = -1;
+    int type;
     memset(data, '\0', sizeof(data));
     memset(type_,'\0',sizeof(type_));
     sscanf(s, "|%d|%s|%s|", &type,type_,data);
@@ -219,50 +156,44 @@ void UnPackageMsg(char* s, struct responseBody *t){
     std::vector<std::string> results; // 用来存储结果
     std::string str; //用来接收每个分割的字符串
     std::string ip, port;
+//    int connectedClients = 0;
     switch (type)
     {
-        case TYPE::NAME:
-            char hostname[40];
-            memset(hostname,0,sizeof(hostname));
-            sscanf(s, "|%*d|%*[^|]|%39[^|]|", hostname);
-            std::cout<<hostname<<std::endl;
-            strcat(t->name, hostname);
-            break;
-        case TYPE::TIME:
-            char date_str[11]; char time_str[9];
-            memset(date_str,0,sizeof(date_str));
-            memset(time_str,0,sizeof(time_str));
-            sscanf(s, "|%*d|%*[^|]|%10s %8s|", date_str, time_str);
-            std::cout<<date_str<<" "<<time_str<<std::endl;
-            strcat(t->time,date_str);
-            strcat(t->time," ");
-            strcat(t->time,time_str);
-//            strcpy(t->time, data);
-            break;
-        case TYPE::SEND: {
-            char message_send[MAXCONTENT];
-            memset(message_send, 0, sizeof(message_send));
-            // 使用strrchr查找最后一个'*'的位置
-            char *lastAsterisk = strrchr(s, '*');
-            *lastAsterisk = '\0';
-            lastAsterisk = strrchr(s, '*');
-            if (lastAsterisk != NULL)
-                strcpy(message_send, lastAsterisk + 1);
-            std::cout << "msg is : "<< message_send << std::endl;
-        }
-            break;
-        case TYPE::CANCEL:
-            break;
-        case TYPE::CONNECT:
-            break;
-        case TYPE::CLIENT: {
+    case TYPE::NAME: {//strcpy(t->name, data);
+        char hostname[40];
+        memset(hostname, 0, sizeof(hostname));
+        sscanf(s, "|%*d|%*[^|]|%39[^|]|", hostname);
+        std::cout << hostname << std::endl;
+        strcat(t->name, hostname);
+    }
+        break;
+    case TYPE::TIME: {
+//        strcpy(t->time, data);
+        char date_str[11];
+        char time_str[9];
+        memset(date_str, 0, sizeof(date_str));
+        memset(time_str, 0, sizeof(time_str));
+        sscanf(s, "|%*d|%*[^|]|%10s %8s|", date_str, time_str);
+        std::cout << date_str << " " << time_str << std::endl;
+        strcat(t->time, date_str);
+        strcat(t->time, " ");
+        strcat(t->time, time_str);
+    }
+        break;
+    case TYPE::SEND:
+        strcpy(t->msg, data);
+        break;
+    case TYPE::CANCEL:
+        break;
+    case TYPE::CONNECT:
+        break;
+    case TYPE::CLIENT:
+
+        {
             char c = '|'; // 设定好分隔符号(只能使用一个字符进行分割)
             while (std::getline(ss, str, c)) {// 开始分隔
                 results.push_back(str);
             }
-//            for (int i = 0; i < results.size(); i++) {
-//                std::cout << "i = " << i << " result[i] = " << results[i] << " length = " << results[i].length() << std::endl;
-//            }
             connectedClients = std::atoi(results[3].c_str());
             std::cout << "connectclients: " << connectedClients << std::endl;
 
@@ -273,10 +204,22 @@ void UnPackageMsg(char* s, struct responseBody *t){
                 strcpy((t->clientList[i]).ip, ip.c_str());
                 (t->clientList[i]).port = std::atoi(port.c_str());
             }
+//            sscanf(data,"|%d|",&connectedClients);
+////            printf("connectedClients is %d\n",connectedClients);
+//            char ip[20];
+//            unsigned short port;
+//            int client_id = 0;
+//            for(int i = 0; i < connectedClients; i++)
+//            {
+//                memset(ip, '\0', sizeof(ip));
+//                sscanf(data,"|%d|%s|%d|",&client_id,ip,&port);
+//                strcpy((t->clientList[i]).ip, ip);
+//                (t->clientList[i]).port=port;
+//            }
         }
-            break;
-        default:
-            break;
+        break;
+    default:
+        break;
     }
 }
 
@@ -294,7 +237,7 @@ DWORD WINAPI Receive_Pipeline(LPVOID lpParameter) {
             printf("recv failed!\n");
             break;
         }else{
-//            printf("recv succeed with content :\n %s\n",recvBuf);
+            printf("recv succeed with content : %s\n",recvBuf);
         }
 
         struct responseBody* temp = (struct responseBody*)malloc(sizeof(struct responseBody));
@@ -326,6 +269,7 @@ DWORD WINAPI Receive_Pipeline(LPVOID lpParameter) {
     }
 
     printf("SubThread ID:%d stop!\n", GetCurrentThreadId());
+//    memset(recvBuf, 0, sizeof(recvBuf)); //the Global: char *recvBuf
     closesocket(Client_SOCKET);
 
     return 1;
@@ -333,11 +277,11 @@ DWORD WINAPI Receive_Pipeline(LPVOID lpParameter) {
 void Connect2Server( ) {
 
     u_long _serverPort = 4169;
-    char  _serverIP[64] = { 0 };
-    printf("Please type in your target server's IP:  ");
-    scanf("%s", _serverIP);
-    printf("Please type in your target server's Port:  ");
-    scanf("%lu", &_serverPort);
+    char  _serverIP[64] = { "10.112.21.73" };
+//    printf("Please type in your target server's IP:  ");
+//    scanf("%s", _serverIP);
+//    printf("Please type in your target server's Port:  ");
+//    scanf("%lu", &_serverPort);
 
     //服务器地址信息对象
     SOCKADDR_IN saServer;
