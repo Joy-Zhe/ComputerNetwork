@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 int connectedClients = 0; // connected clients
+int maxIndex = 0; // max index of client list
 
 enum TYPE{ DONE = 0, CONNECT = 1, CANCEL = 2, TIME = 3, NAME = 4, CLIENT = 5, SEND = 6 };
 
@@ -20,14 +21,6 @@ struct ClientInfo {
 };
 struct ClientInfo clientList[FD_SETSIZE];
 
-//struct ClientList{
-//    char ip[20];
-//    unsigned short port;
-//    int if_connected;
-//    char name[20];
-//};
-//struct ClientList clientList[FD_SETSIZE]; // client list
-
 struct responseBody{
     int type;       // type
     char msg[512];  // message for type 6
@@ -36,19 +29,6 @@ struct responseBody{
     char name[20];  // name for type 4
     char time[20];
 };
-
-// request list
-/*
- * actually the data part only will be used when type is 6
- * |type|data|
- * |0|Done|
- * |1|Connect|
- * |2|Cancel|
- * |3|LocalTime|
- * |4|HostName|
- * |5|List|
- * |6|<Message to be sent>|
- */
 
 int ParseRequest(const char *requestStr, struct Message *message){
     //request format: "|type|data|"
@@ -155,12 +135,15 @@ void EncodeResponse(int type, const struct responseBody *data/*, const char *dat
             sprintf(clientNum, "%d", connectedClients);
             strcat(responseStr, clientNum);
             strcat(responseStr, "|");
-
-            for (int i = 1; i <= connectedClients; i++) {
+            for (int i = 1; i <= maxIndex; i++) {
+                if (clientList[i - 1].if_connected == 0) {
+                    continue;
+                }
                 char clientInfo[512];
                 char cur_ip[20];
                 unsigned short cur_port = ntohs(clientList[i - 1].saClient.sin_port);
                 strcpy(cur_ip, inet_ntoa(clientList[i - 1].saClient.sin_addr));
+
                 sprintf(clientInfo, "\n|%d|%s|%d|", i, cur_ip, cur_port);
                 strcat(responseStr, clientInfo);
             }

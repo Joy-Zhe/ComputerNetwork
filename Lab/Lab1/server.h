@@ -13,6 +13,11 @@
 
 CRITICAL_SECTION cs; // 临界区
 
+void UpdateMaxIndex() {
+    if (connectedClients > maxIndex) {
+        maxIndex = connectedClients;
+    }
+}
 
 void InitWinSocket(){
     WSADATA wsaData;
@@ -51,8 +56,6 @@ void CreateListeningSocket(SOCKET *ListenSocket, struct sockaddr_in *saServer) {
     (*saServer).sin_addr.S_un.S_addr = htonl(INADDR_ANY); // listening address
 }
 
-
-
 void BindSocket(SOCKET *ListenSocket, struct sockaddr_in *saServer) {
     int ret;
     ret = bind(*ListenSocket, (struct sockaddr *)saServer, sizeof(*saServer));
@@ -79,7 +82,10 @@ void Listen(const SOCKET *sListen) {
 
 // for Send Message to other clients
 void BroadcastMsg(const char *ip, const char *port, const char *msg) {
-    for (int i = 1; i <= connectedClients; i++) {
+    for (int i = 1; i <= maxIndex; i++) {
+        if (clientList[i - 1].if_connected == 0) {
+            continue;
+        }
         char cur_ip[20];
         unsigned short cur_port = ntohs(clientList[i - 1].saClient.sin_port);
         strcpy(cur_ip, inet_ntoa(clientList[i - 1].saClient.sin_addr));
@@ -124,22 +130,12 @@ unsigned int __stdcall HandleClient(void *clientInfoPtr) {
 
             // get all request information in responseBody
             struct responseBody *response = (struct responseBody *)malloc(sizeof(struct responseBody));
-            /*
-             * struct responseBody{
-             *  int type;       // type
-             *  char msg[512];  // message for type 6
-             *  char ip[20];    // ip for type 1 and 2 and 4 and 5
-             *  char port[10];
-             *  char name[20];  // name for type 4
-             *  char time[20];
-             *  struct ClientList clientList[10];   // client list for type 5
-             *  };
-             */
             response->type = message->type;
             strcpy(response->msg, message->data);
             strcpy(response->ip, inet_ntoa(saClient.sin_addr));
             sprintf(response->port, "%d", ntohs(saClient.sin_port));
-            strcpy(response->name, "client");
+//            strcpy(response->name, "client");
+            gethostname(response->name, sizeof(response->name));
             time_t currentTime;
             struct tm *timeInfo;
             time(&currentTime);
@@ -152,17 +148,7 @@ unsigned int __stdcall HandleClient(void *clientInfoPtr) {
             printf("response->port: %s\n", response->port);
             printf("response->name: %s\n", response->name);
             printf("response->time: %s\n", response->time);*/
-/*
- * actually the data part only will be used when type is 6
- * |type|data|
- * |0|Done|
- * |1|Connect|
- * |2|Cancel|
- * |3|LocalTime|
- * |4|HostName|
- * |5|List|
- * |6|<Message to be sent>|
- */
+
             char *responseBuffer = (char *)malloc(1024 * sizeof(char));
             struct responseBody *recvMsgClient = (struct responseBody *)malloc(sizeof(struct responseBody));
             if (response->type == 6) {
@@ -244,7 +230,8 @@ void StartServer() {
                         clientList[i].sClient = clientSocket;
                         clientList[i].saClient = saClient;
                         clientList[i].if_connected = 1;
-                        connectedClients++; // 增加连接的客户端数量
+                        connectedClients++; // number of clients
+                        UpdateMaxIndex(); // update max index for indexing all clients
                         HANDLE thread = (HANDLE)_beginthreadex(NULL, 0, HandleClient, &clientList[i], 0, NULL);
                         if (thread == NULL) {
                             printf("Create thread failed!\n");
@@ -263,7 +250,7 @@ void StartServer() {
             }
         }
 
-        // 实时输出当前连接的客户端数量
+        // output the number of connected clients
         printf("Connected clients: %d\n", connectedClients);
     }
     DeleteCriticalSection(&cs);
