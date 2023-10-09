@@ -5,6 +5,8 @@
 #include <ws2tcpip.h>
 #include <string.h>
 #include <time.h>
+#include <stdlib.h>
+#include <windows.h>
 #include <process.h>
 #include "parser.h"
 #pragma comment(lib,"ws2_32.lib")
@@ -100,6 +102,54 @@ void BroadcastMsg(const char *ip, const char *port, const char *msg) {
     printf("No such client!\n");
 }
 
+DWORD WINAPI HandleClientThread(LPVOID lpParameter) {
+    struct ClientInfo *clientInfo = (struct ClientInfo *)lpParameter;
+    SOCKET socket = clientInfo->sClient;
+    struct sockaddr_in saClient = clientInfo->saClient;
+
+    while (1) {
+        char buffer[1024];
+        int bytesRead = recv(socket, buffer, sizeof(buffer), 0);
+        if (bytesRead == SOCKET_ERROR) {
+            printf("recv() failed! code:%d\n", WSAGetLastError());
+            break; // connection failed
+        }
+        else {
+            buffer[bytesRead] = '\0';
+            struct Message *message = (struct Message *)malloc(sizeof(struct Message));
+            ParseRequest(buffer, message);
+            printf("Received message: %d\n", message->type);
+
+            // get all request information in responseBody
+            struct responseBody *response = (struct responseBody *)malloc(sizeof(struct responseBody));
+            response->type = message->type;
+            strcpy(response->msg, message->data);
+            strcpy(response->ip, inet_ntoa(saClient.sin_addr));
+            sprintf(response->port, "%d", ntohs(saClient.sin_port));
+            gethostname(response->name, sizeof(response->name));
+            time_t currentTime;
+            struct tm *timeInfo;
+            time(&currentTime);
+            timeInfo = localtime(&currentTime);
+            strftime(response->time, sizeof(response->time), "%Y-%m-%d %H:%M:%S", timeInfo);
+
+            char *responseBuffer = (char *)malloc(1024 * sizeof(char));
+            struct responseBody *recvMsgClient = (struct responseBody *)malloc(sizeof(struct responseBody));
+            if (response->type == 6) {
+                DecodeInfo(response->msg, recvMsgClient);
+                // send message to other clients
+                BroadcastMsg(recvMsgClient->ip, recvMsgClient->port, recvMsgClient->msg);
+                continue;
+            }
+            EncodeResponse(response->type, response, responseBuffer);
+            send(socket, responseBuffer, strlen(responseBuffer), 0);
+            printf("Sent message: %s\n", responseBuffer);
+            if (response->type == 2)
+                break;
+        }
+    }
+}
+
 unsigned int __stdcall HandleClient(void *clientInfoPtr) {
     struct ClientInfo *clientInfo = (struct ClientInfo *)clientInfoPtr;
     SOCKET socket = clientInfo->sClient;
@@ -156,6 +206,7 @@ unsigned int __stdcall HandleClient(void *clientInfoPtr) {
                 DecodeInfo(response->msg, recvMsgClient);
                 // send message to other clients
                 BroadcastMsg(recvMsgClient->ip, recvMsgClient->port, recvMsgClient->msg);
+                continue;
             }
             EncodeResponse(response->type, response, responseBuffer);
             send(socket, responseBuffer, strlen(responseBuffer), 0);
@@ -258,6 +309,19 @@ void StartServer() {
     closesocket(ListenSocket);
     WSACleanup();
     exit(0);
+}
+
+void StartMainProcess() {
+    InitWinSocket();
+    SOCKET ListenSocket;
+    struct sockaddr_in saServer;
+    CreateListeningSocket(&ListenSocket, &saServer);
+    BindSocket(&ListenSocket, &saServer);
+    Listen(&ListenSocket);
+    printf("Waiting for client connecting!\n");
+    printf("tips : Ctrl+c to quit!\n");
+    InitializeCriticalSection(&cs); // 初始化临界区
+
 }
 
 #endif //LAB1_SERVER_H

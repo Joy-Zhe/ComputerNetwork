@@ -50,12 +50,14 @@ void PktRequest(struct Message* t, char* s){
 }
 
 void getTime(){
-    struct Message* temp = (struct Message*)malloc(sizeof(struct Message));
-    char* s = (char*)malloc(sizeof(char));
-    temp->type = TIME;
-    PktRequest(temp, s);
-    int ret = send(Client_SOCKET, s, strlen(s), 0);
-    if (ret == SOCKET_ERROR) printf("getTime send() failed!\n");
+    for (int i = 0; i < 10; i++) {
+        struct Message *temp = (struct Message *) malloc(sizeof(struct Message));
+        char *s = (char *) malloc(sizeof(char));
+        temp->type = TIME;
+        PktRequest(temp, s);
+        int ret = send(Client_SOCKET, s, strlen(s), 0);
+        if (ret == SOCKET_ERROR) printf("getTime send() failed!\n");
+    }
 }
 
 void getName(){
@@ -277,9 +279,9 @@ DWORD WINAPI Receive_Pipeline(LPVOID lpParameter) {
 void Connect2Server( ) {
 
     u_long _serverPort = 4169;
-    char  _serverIP[64] = { "10.112.21.73" };
-//    printf("Please type in your target server's IP:  ");
-//    scanf("%s", _serverIP);
+    char  _serverIP[64] = { 0 };
+    printf("Please type in your target server's IP:  ");
+    scanf("%s", _serverIP);
 //    printf("Please type in your target server's Port:  ");
 //    scanf("%lu", &_serverPort);
 
