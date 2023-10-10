@@ -35,7 +35,8 @@ int main() {
         std::cout << "Listen failed" << std::endl;
     }
 
-    std::cout << "Server is listening and ready to connect" << std::endl;
+    std::cout << "Waiting for clients to connect!" << std::endl
+        << "Ctrl+C to quit!" << std::endl;
 
     while (1) {
         sockaddr_in cliAddr;
@@ -53,7 +54,9 @@ int main() {
         HANDLE hThread;
         DWORD dwThreadId;
 
+        const char HelloMsg[] = "Hello, I'm server!";
         hThread = CreateThread(NULL, 0, HandleClientRequest, (LPVOID)cliSock, 0, &dwThreadId);
+        send(cliSock, HelloMsg, sizeof("Hello, I'm server!"), 0);
         CloseHandle(hThread);
     }
 

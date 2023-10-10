@@ -24,67 +24,6 @@ void UpdateMaxIndex() {
 
 std::mutex mtx;
 
-void InitWinSocket(){
-    WSADATA wsaData;
-    WORD wVersionRequested = MAKEWORD(2, 2);
-
-    if (WSAStartup(wVersionRequested, &wsaData) != 0) {
-        printf("WSAStartup() failed!\n");
-        exit(1);
-    }
-
-    if (LOBYTE(wsaData.wVersion) != 2 || HIBYTE(wsaData.wVersion) != 2) {
-        printf("Invalid WinSock version!\n");
-        WSACleanup();
-        exit(1);
-    }
-}
-
-void CreateListeningSocket(SOCKET *ListenSocket, struct sockaddr_in *saServer) {
-    struct addrinfo *result = NULL, *ptr = NULL, hints;
-    hints.ai_family = AF_INET;
-    hints.ai_socktype = SOCK_STREAM;
-    hints.ai_protocol = IPPROTO_TCP;
-    hints.ai_flags = AI_PASSIVE; // for wildcard IP address
-
-    *ListenSocket = INVALID_SOCKET;
-    *ListenSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if(*ListenSocket == INVALID_SOCKET)
-    {
-        WSACleanup();
-        printf("socket() failed!\n");
-        exit(1);
-    }
-
-    (*saServer).sin_family = AF_INET; // address family
-    (*saServer).sin_port = htons(SERVER_PORT); // listening port
-    (*saServer).sin_addr.S_un.S_addr = htonl(INADDR_ANY); // listening address
-}
-
-void BindSocket(SOCKET *ListenSocket, struct sockaddr_in *saServer) {
-    int ret;
-    ret = bind(*ListenSocket, (struct sockaddr *)saServer, sizeof(*saServer));
-    if (ret == SOCKET_ERROR)
-    {
-        printf("bind() failed! code:%d\n", WSAGetLastError());
-        closesocket(*ListenSocket);// close socket
-        WSACleanup();
-        return;
-    }
-}
-
-void Listen(const SOCKET *sListen) {
-    int ret;
-    ret = listen(*sListen, 500);
-    if (ret == SOCKET_ERROR)
-    {
-        printf("listen() failed! code:%d\n", WSAGetLastError());
-        closesocket(*sListen);// close socket
-        WSACleanup();
-        return;
-    }
-}
-
 void BroadcastMsg(const char *ip, const char *port, const char *msg) {
     for (int i = 0; i < clientList.size(); i++) {
         if (clientList[i].if_connected == 0) {
@@ -95,7 +34,7 @@ void BroadcastMsg(const char *ip, const char *port, const char *msg) {
         strcpy(cur_ip, inet_ntoa(clientList[i].saClient.sin_addr));
         if (strcmp(cur_ip, ip) == 0 && cur_port == atoi(port)) {
             printf("Send message to client: %s:%d\n", cur_ip, cur_port);
-            send(clientList[i - 1].sClient, msg, strlen(msg), 0);
+            send(clientList[i].sClient, msg, strlen(msg), 0);
             return;
         } else {
             continue;
@@ -124,7 +63,7 @@ DWORD WINAPI HandleClientRequest(LPVOID lpParam) {
         buffer[bytes] = '\0';
         ParseRequest(buffer, &message);
         mtx.lock();
-        std::cout << message.type << std::endl;
+//        std::cout << message.type << std::endl;
         struct responseBody *response = (struct responseBody *)malloc(sizeof(struct responseBody));
         response->type = message.type;
         strcpy(response->msg, message.data);
@@ -137,13 +76,6 @@ DWORD WINAPI HandleClientRequest(LPVOID lpParam) {
         time(&currentTime);
         timeInfo = localtime(&currentTime);
         strftime(response->time, sizeof(response->time), "%Y-%m-%d %H:%M:%S", timeInfo);
-        // for test output
-//        printf("response->type: %d\n", response->type);
-//        printf("response->msg: %s\n", response->msg);
-//        printf("response->ip: %s\n", response->ip);
-//        printf("response->port: %s\n", response->port);
-//        printf("response->name: %s\n", response->name);
-//        printf("response->time: %s\n", response->time);
 
         char *responseBuffer = (char *)malloc(1024 * sizeof(char));
         struct responseBody *recvMsgClient = (struct responseBody *)malloc(sizeof(struct responseBody));
