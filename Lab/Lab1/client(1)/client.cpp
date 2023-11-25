@@ -50,7 +50,7 @@ void PktRequest(struct Message* t, char* s){
 }
 
 void getTime(){
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < 100; i++) {
         struct Message *temp = (struct Message *) malloc(sizeof(struct Message));
         char *s = (char *) malloc(sizeof(char));
         temp->type = TIME;

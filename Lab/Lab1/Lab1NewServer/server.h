@@ -23,6 +23,7 @@ void UpdateMaxIndex() {
 }
 
 std::mutex mtx;
+HANDLE hMutex;
 
 void BroadcastMsg(const char *ip, const char *port, const char *msg) {
     for (int i = 0; i < clientList.size(); i++) {
@@ -61,8 +62,9 @@ DWORD WINAPI HandleClientRequest(LPVOID lpParam) {
             break;
         }
         buffer[bytes] = '\0';
-        ParseRequest(buffer, &message);
+//        ParseRequest(buffer, &message);
         mtx.lock();
+        WaitForSingleObject(hMutex, INFINITE);
 //        std::cout << message.type << std::endl;
         struct responseBody *response = (struct responseBody *)malloc(sizeof(struct responseBody));
         response->type = message.type;
@@ -92,13 +94,14 @@ DWORD WINAPI HandleClientRequest(LPVOID lpParam) {
         std::cout << std::flush;
         memset(&message, 0, sizeof(message));
         mtx.unlock();
+//        ReleaseMutex(hMutex);
         if (response->type == 2)
-
             break;
     }
 
     closesocket(conSock);
     mtx.lock();
+//    WaitForSingleObject(hMutex, INFINITE);
     for (size_t i = 0; i < clientList.size(); i++) {
         if (clientList[i].sClient == conSock) {
             clientList.erase(clientList.begin() + i);
@@ -106,6 +109,7 @@ DWORD WINAPI HandleClientRequest(LPVOID lpParam) {
         }
     }
     mtx.unlock();
+//    ReleaseMutex(hMutex);
     closesocket(conSock);
     std::cout << "Connection closed" << std::endl;
     return 0;

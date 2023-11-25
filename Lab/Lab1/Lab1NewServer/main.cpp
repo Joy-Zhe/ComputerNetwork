@@ -1,10 +1,10 @@
 #include <iostream>
 #include "server.h"
-#define MAX_NUM 1000
+#define MAX_NUM 10
 int main() {
 //    std::std::cout << "Hello, World!" << std::std::endl;
 //    return 0;
-
+    hMutex = CreateMutex(NULL, false, NULL);
     WSADATA wsaData;
     if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0) {
         std::cout << "WSAStartup failed" << std::endl;
