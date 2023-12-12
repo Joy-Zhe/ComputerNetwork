@@ -4,3 +4,5 @@
 .obsidian/
 cmake-build-debug/
 cmake-build-release/
+*.zip
+*.exe
