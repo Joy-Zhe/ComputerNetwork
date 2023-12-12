@@ -130,6 +130,7 @@ private:
 
             std::string request(buffer);
 
+//            std::cout << "Request: " << std::endl << request << std::endl;
             // TODO: Parse HTTP request and extract method, file, and headers
             std::istringstream iss(request);
             std::string method, file, headers;
@@ -143,18 +144,7 @@ private:
             if (method == "GET") {
                 webServerParam->HandleGet(clientSocket, file);
             } else if (method == "POST") {
-                std::cout << "Handling POST request" << std::endl;
-                std::string body;
-                std::string line;
-                while (std::getline(iss, line)) {
-                    if (line.empty()) {
-                        break;
-                    }
-                }
-                while (std::getline(iss, line)) {
-                    body += line;
-                }
-                webServerParam->HandlePost(clientSocket, file, body);
+                webServerParam->HandlePost(clientSocket, file, request);
             } else {
                 webServerParam->SendNotFoundResponse(clientSocket);
             }
@@ -205,7 +195,7 @@ private:
             response += "Content-Length:" + std::string(len) + "\r\n";
             response += "Server: csr_http1.1\n";
 
-            if (url.find(".img") != std::string::npos) {
+            if (url.find(".png") != std::string::npos) {
                 response += "Accept-Ranges: bytes\r\n";
             }
 
@@ -227,26 +217,46 @@ private:
         }
     }
 
-    void HandlePost(SOCKET clientSocket, const std::string& file, const std::string& body) {
+    void HandlePost(SOCKET clientSocket, const std::string& file, const std::string& request) {
         std::cout << "Handling POST request" << std::endl;
+        std::string successMsg = "<html><body><h1>Login Success</h1><p>From server: Login successfully.</p></body></html>\r\n";
+        std::string failedMsg = "<html><body><h1>Login Failed</h1><p>From server: Login failed.</p></body></html>\r\n";
 
-        std::ofstream fileStream(file, std::ios::binary);
-        if (!fileStream.is_open()) {
-            SendNotFoundResponse(clientSocket);
-            return;
+        // parse "login=xxx&pass=xxx"
+        std::string login = request.substr(request.find("login=") + strlen("login="));
+        login = login.substr(0, login.find("&"));
+        std::string password = request.substr(request.find("pass=") + strlen("pass="));
+        password = password.substr(0, password.find("&"));
+
+//        std::cout << "Login: " << login << std::endl;
+//        std::cout << "Password: " << password << std::endl;
+
+        std::string response = "HTTP/1.1 200 OK\r\n";
+        response += "Content-Type: text/html\r\n";
+        response += "Content-Length: ";
+
+        if (login == "3210104169" && password == "4169") {
+            response += std::to_string(successMsg.size());
+            response += "\r\n\r\n";
+            response += successMsg;
+            std::cout << "Login successfully" << std::endl;
+        } else {
+            response += std::to_string(failedMsg.size());
+            response += "\r\n\r\n";
+            response += failedMsg;
+            std::cout << "Login failed" << std::endl;
         }
 
-        fileStream << body;
-        fileStream.close();
+        SendHttpResponse(clientSocket, response);
 
-        SendOkResponse(clientSocket);
+//        SendOkResponse(clientSocket);
     }
 
-    void SendHttpResponse(SOCKET clientSocket, const std::string& response) {
+    static void SendHttpResponse(SOCKET clientSocket, const std::string& response) {
         send(clientSocket, response.c_str(), response.size(), 0);
     }
 
-    void SendOkResponse(SOCKET clientSocket) {
+    static void SendOkResponse(SOCKET clientSocket) {
         std::string response = "HTTP/1.1 200 OK\r\n";
         response += "Content-Type: text/html\r\n";
         response += "Content-Length: 0\r\n";
@@ -255,7 +265,7 @@ private:
         send(clientSocket, response.c_str(), response.size(), 0);
     }
 
-    void SendNotFoundResponse(SOCKET clientSocket) {
+    static void SendNotFoundResponse(SOCKET clientSocket) {
         std::string response = "HTTP/1.1 404 Not Found\r\n";
         response += "Content-Type: text/html\r\n";
         response += "Content-Length: 0\r\n";
