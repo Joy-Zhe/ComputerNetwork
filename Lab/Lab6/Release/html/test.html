@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab6_WebServer_3210104169_郑乔尹</title>
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+
+        .container {
+            display: flex;
+            flex-direction: column;
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            width: 300px;
+            text-align: center;
+            align-items: center;
+        }
+
+        .input-group {
+            display: flex;
+            align-items: flex-start;
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        form {
+            margin-top: 20px;
+            display: flex;
+            align-items: center;
+            flex-direction: column;
+        }
+
+        label {
+            display: inline-block;
+            width: 90px;
+            text-align: left;
+            margin-top: 12px;
+            margin-right: 10px;
+        }
+
+        input {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            width: calc(100% - 80px);
+        }
+
+        input[type="submit"] {
+            background-color: #4caf50;
+            color: #fff;
+            cursor: pointer;
+        }
+
+        input[type="submit"]:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>This is a test</h1>
+    <img src="logo.png" alt="Logo" style="max-width: 100%" />
+    <form action="dopost" method="POST">
+        <div class="input-group">
+            <label for="login">Login:</label>
+            <input type="text" name="login" id="login" />
+        </div>
+        <div class="input-group">
+            <label for="pass">Password:</label>
+            <input type="password" name="pass" id="pass" />
+        </div>
+        <br />
+        <input type="submit" value="Login" />
+    </form>
+</div>
+</body>
+</html>
+
