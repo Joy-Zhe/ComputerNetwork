@@ -13,7 +13,7 @@
 #include <windows.h>
 #include <process.h>
 #include <winsock2.h>
-#define SOCKET_PORT 14169
+#define SOCKET_PORT 4169
 
 #pragma comment(lib, "ws2_32.lib")
 
@@ -104,7 +104,7 @@ private:
         return clientSocket;
     }
 
-    static DWORD WINAPI HandleClient(LPVOID param/*SOCKET clientSocket*/) {
+    static DWORD WINAPI HandleClient(LPVOID param) {
         char buffer[1024 * 1024] = {0};
         // reload the param
         auto *threadParam = static_cast<ThreadParam*>(param); //ThreadParam*
@@ -131,7 +131,6 @@ private:
             std::string request(buffer);
 
 //            std::cout << "Request: " << std::endl << request << std::endl;
-            // TODO: Parse HTTP request and extract method, file, and headers
             std::istringstream iss(request);
             std::string method, file, headers;
             iss >> method >> file >> headers;
@@ -140,7 +139,6 @@ private:
 //            std::cout << "File: " << file << std::endl;
 //            std::cout << "Headers: " << headers << std::endl;
 
-            // TODO: Handle GET and POST methods
             if (method == "GET") {
                 webServerParam->HandleGet(clientSocket, file);
             } else if (method == "POST") {
@@ -168,6 +166,9 @@ private:
             type = "text/html";
         } else if (url.find(".png") != std::string::npos) {
             type = "image/png";
+            name += "/img";
+        } else if (url.find(".ico") != std::string::npos) {
+            type = "image/ico";
             name += "/img";
         }
 
@@ -221,15 +222,11 @@ private:
         std::cout << "Handling POST request" << std::endl;
         std::string successMsg = "<html><body><h1>Login Success</h1><p>From server: Login successfully.</p></body></html>\r\n";
         std::string failedMsg = "<html><body><h1>Login Failed</h1><p>From server: Login failed.</p></body></html>\r\n";
-
         // parse "login=xxx&pass=xxx"
         std::string login = request.substr(request.find("login=") + strlen("login="));
         login = login.substr(0, login.find("&"));
         std::string password = request.substr(request.find("pass=") + strlen("pass="));
         password = password.substr(0, password.find("&"));
-
-//        std::cout << "Login: " << login << std::endl;
-//        std::cout << "Password: " << password << std::endl;
 
         std::string response = "HTTP/1.1 200 OK\r\n";
         response += "Content-Type: text/html\r\n";
@@ -248,8 +245,6 @@ private:
         }
 
         SendHttpResponse(clientSocket, response);
-
-//        SendOkResponse(clientSocket);
     }
 
     static void SendHttpResponse(SOCKET clientSocket, const std::string& response) {
